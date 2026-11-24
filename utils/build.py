@@ -49,8 +49,7 @@ CHAPTER_TITLE_PREFIX = re.compile(r"^Chapter\s+\w+\s*:\s*", re.I)
 
 # Quizzes and finals: .docx files in SRC whose names start with these.
 # Excludes QuizTemplate, syllabi and other non-assessment documents.
-QUIZ_PREFIXES = ("Quiz", "Final", "Macroeconomics Quiz", "MacroeconomicsQuiz",
-                 "CheatersQuiz")
+QUIZ_PREFIXES = ("Quiz", "Final", "Macroeconomics Quiz", "MacroeconomicsQuiz")
 QUIZ_EXCLUDE = {"QuizTemplate.docx"}
 
 # Excel models: (file in MODELS dir, title, description).
