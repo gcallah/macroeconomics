@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" font-family="Helvetica Neue, Arial, sans-serif">
+  <!-- Keynesian cross: Y = AE (45-degree line) against AE = C + I,
+       with an increase in investment shifting AE up (the multiplier). -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1f2a37"/>
+    </marker>
+  </defs>
+
+  <!-- axes -->
+  <g stroke="#1f2a37" stroke-width="3" fill="none">
+    <path d="M80,540 H770" marker-end="url(#arrow)"/>
+    <path d="M80,540 V30" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="#1f2a37" font-size="20" font-weight="600">
+    <text x="770" y="575" text-anchor="end">Output, Y</text>
+    <text transform="translate(50 285) rotate(-90)" text-anchor="middle">Aggregate expenditure, AE</text>
+  </g>
+
+  <!-- 45-degree line: Y = AE -->
+  <path d="M80,540 L580,40" stroke="#1d4e89" stroke-width="4" fill="none"/>
+  <text transform="translate(205 395) rotate(-45)" fill="#1d4e89" font-size="22" font-weight="700">Y = AE (45°)</text>
+
+  <!-- AE = C + I -->
+  <path d="M80,390 L740,60" stroke="#b4531c" stroke-width="4" fill="none"/>
+  <text x="748" y="68" fill="#b4531c" font-size="22" font-weight="700">AE₁</text>
+
+  <!-- AE after an increase in investment -->
+  <path d="M80,350 L740,20" stroke="#e0893a" stroke-width="4" stroke-dasharray="12 8" fill="none"/>
+  <text x="748" y="28" fill="#e0893a" font-size="22" font-weight="700">AE₂</text>
+  <path d="M100,377 V343" stroke="#e0893a" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="108" y="364" fill="#a9521c" font-size="18" font-weight="600">ΔI</text>
+
+  <!-- equilibria and guides -->
+  <g stroke="#6d6257" stroke-width="2" stroke-dasharray="5 6" fill="none">
+    <path d="M380,240 V540 M380,240 H80"/>
+    <path d="M460,160 V540 M460,160 H80"/>
+  </g>
+  <circle cx="380" cy="240" r="8" fill="#b4531c"/>
+  <circle cx="460" cy="160" r="8" fill="#e0893a"/>
+  <g fill="#1f2a37" font-size="20" font-weight="600" text-anchor="middle">
+    <text x="380" y="566">Y₁*</text>
+    <text x="460" y="566">Y₂*</text>
+  </g>
+  <path d="M386,520 H452" stroke="#1d4e89" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="420" y="510" fill="#1d4e89" font-size="16" font-weight="600" text-anchor="middle">ΔY</text>
+</svg>

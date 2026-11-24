@@ -85,10 +85,8 @@ SITE_TITLE = "Macroeconomics"
 FONTS_URL = ("https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800"
              "&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;"
              "1,8..60,400&display=swap")
-CREDIT = ('Background: Adolph Menzel, <i>The Iron Rolling Mill (Modern Cyclopes)</i>, '
-          '1872&ndash;75, Alte Nationalgalerie, Berlin. '
-          '<a href="https://commons.wikimedia.org/wiki/File:Adolph_Menzel_-_Eisenwalzwerk_'
-          '-_Google_Art_Project.jpg">Public domain, via Wikimedia Commons</a>.')
+CREDIT = ("Header diagram: the Keynesian cross. A rise in investment (&Delta;I) shifts "
+          "aggregate expenditure up and raises equilibrium output by a multiple (&Delta;Y).")
 
 # Set in main() once style.css is known, so browsers refetch it after changes.
 CSS_VERSION = ""
