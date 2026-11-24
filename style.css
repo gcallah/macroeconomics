@@ -1,0 +1,72 @@
+/* Shared styles for the Macroeconomics site. */
+
+body {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.5;
+    color: #222;
+    background: #f7f5f0;
+}
+
+main {
+    max-width: 52rem;
+    margin: 0 auto;
+    padding: 1rem 1.5rem 4rem;
+}
+
+nav {
+    max-width: 52rem;
+    margin: 0 auto;
+    padding: 0.75rem 1.5rem 0;
+}
+
+a { color: #1d4e89; }
+
+h1 { color: #14365e; }
+
+h2 { color: #14365e; border-bottom: 1px solid #d8d2c4; padding-bottom: 0.2rem; }
+
+ul.toc li { margin: 0.3rem 0; }
+ul.cols { columns: 2; }
+.meta { color: #777; font-size: 0.9em; }
+
+/* Lecture slides */
+section.slide {
+    background: #fff;
+    border: 1px solid #e0dacd;
+    border-radius: 6px;
+    padding: 0.5rem 1.5rem 1rem;
+    margin: 1.5rem 0;
+}
+
+section.slide h2 { border: none; font-size: 1.3rem; }
+section.slide .num { color: #999; font-size: 0.8em; margin-right: 0.4rem; }
+
+section.slide img {
+    display: block;
+    max-width: 100%;
+    max-height: 28rem;
+    margin: 1rem auto;
+}
+
+aside.notes {
+    font-size: 0.9em;
+    color: #555;
+    border-left: 3px solid #d8d2c4;
+    padding-left: 0.8rem;
+    margin-top: 1rem;
+}
+
+table { border-collapse: collapse; margin: 1rem 0; }
+th, td { border: 1px solid #ccc; padding: 0.3rem 0.6rem; text-align: left; }
+caption { font-style: italic; padding-bottom: 0.3rem; }
+
+/* Quiz pages (pandoc output) */
+main img { max-width: 100%; }
+
+/* Line charts drawn from slide chart data */
+svg.chart { width: 100%; height: auto; margin: 1rem 0; font-size: 12px; }
+svg.chart text { fill: #555; }
+svg.chart .grid { stroke: #e4e0d6; }
+svg.chart .zero { stroke: #999; }
+p.legend span { margin-right: 1rem; }

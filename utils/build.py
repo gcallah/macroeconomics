@@ -1,0 +1,424 @@
+#!/usr/bin/env python3
+"""Build the macroeconomics static site from course material kept elsewhere.
+
+Collects:
+  * lecture decks (.pptx)  -> lectures/<slug>.html + lectures/<slug>/ images
+  * quizzes and finals     -> quizzes/<slug>.html (via pandoc)
+  * Excel models (.xlsx)   -> models/
+and writes index.html linking them all.
+
+Usage: python3 utils/build.py [--src DIR] [--models DIR] [--out DIR]
+Needs: python-pptx (pip install python-pptx) and pandoc.
+"""
+
+import argparse
+import html
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+HOME = Path.home()
+DEFAULT_SRC = HOME / "Documents/CoursesTaught/Macroeconomics"
+DEFAULT_MODELS = HOME / "GitProjects/MacroModels"
+
+# Lecture decks, in course order: (source path relative to SRC, output slug).
+# Left out on purpose: Chapter07/MAC_1e_Chap_7_M.pptx and MacroInContext/,
+# which are the textbook publisher's slides.
+DECKS = [
+    ("Chapter01/Chapter1.pptx", "chapter01"),
+    ("Chapter02/Chapter2.pptx", "chapter02"),
+    ("Chapter03/Chapter3.pptx", "chapter03"),
+    ("Chapter04/Chapter4.pptx", "chapter04"),
+    ("Chapter05/Chapter5.pptx", "chapter05"),
+    ("Chapter07/Chapter7.pptx", "chapter07"),
+    ("Chapter07/Money.pptx", "chapter07-money"),
+    ("Chapter09/Chapter09.pptx", "chapter09"),
+    ("Chapter10/Chapter10.pptx", "chapter10"),
+    ("Chapter11/Chapter11.pptx", "chapter11"),
+    ("SchoolsOfThought/SchoolsOfThought.pptx", "schools-of-thought"),
+]
+
+# Quizzes and finals: .docx files in SRC whose names start with these.
+# Excludes QuizTemplate, syllabi and other non-assessment documents.
+QUIZ_PREFIXES = ("Quiz", "Final", "Macroeconomics Quiz", "MacroeconomicsQuiz",
+                 "CheatersQuiz")
+QUIZ_EXCLUDE = {"QuizTemplate.docx"}
+
+# Excel models: (file in MODELS dir, title, description).
+MODELS = [
+    ("RealVsNominal.xlsx", "Real versus nominal growth",
+     "Generates problems for telling apart real growth, nominal growth and "
+     "inflation in a two-good economy."),
+    ("KeynesianCross.xlsx", "Keynesian cross",
+     "Experiment with the Keynesian cross by setting autonomous consumption, "
+     "intended investment and the marginal propensity to consume."),
+    ("PPF.xlsx", "Production possibilities frontier",
+     "Shows how the production possibilities frontier can change and how "
+     "points along it are chosen."),
+    ("LoanableFunds.xlsx", "Loanable funds", "The classical loanable funds market."),
+    ("SupplyDemand.xlsx", "Supply and demand", "A basic supply and demand model."),
+]
+
+WEB_IMAGE_EXTS = {"png", "jpg", "jpeg", "gif", "svg", "webp"}
+CONVERT_WITH_SIPS = {"tif", "tiff", "bmp"}
+
+warnings = []
+
+
+def warn(msg):
+    warnings.append(msg)
+
+
+def esc(text):
+    return html.escape(text, quote=True)
+
+
+def page(title, body, css="style.css", home="index.html"):
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{esc(title)}</title>
+    <link rel="stylesheet" href="{css}">
+</head>
+<body>
+<nav><a href="{home}">&larr; Macroeconomics</a></nav>
+<main>
+{body}
+</main>
+</body>
+</html>
+"""
+
+
+# ---------------------------------------------------------------- slides
+
+def run_html(run):
+    text = esc(run.text).replace("\x0b", "<br>")
+    if not text:
+        return ""
+    font = run.font
+    if font.bold:
+        text = f"<strong>{text}</strong>"
+    if font.italic:
+        text = f"<em>{text}</em>"
+    addr = run.hyperlink.address if run.hyperlink else None
+    if addr:
+        text = f'<a href="{esc(addr)}">{text}</a>'
+    return text
+
+
+def text_frame_html(tf):
+    """Render a text frame as nested lists keyed on paragraph level."""
+    paras = [(p.level, "".join(run_html(r) for r in p.runs)) for p in tf.paragraphs]
+    paras = [(lvl, t) for lvl, t in paras if t.strip()]
+    if not paras:
+        return ""
+    out, depth = [], -1
+    for lvl, text in paras:
+        while depth < lvl:
+            out.append("<ul>")
+            depth += 1
+        while depth > lvl:
+            out.append("</li></ul>")
+            depth -= 1
+        if out and out[-1] not in ("<ul>",):
+            out.append("</li>")
+        out.append(f"<li>{text}")
+    out.append("</li>")
+    while depth >= 0:
+        out.append("</ul>")
+        depth -= 1
+    return "\n".join(out)
+
+
+def table_html(tbl):
+    rows = []
+    for r_i, row in enumerate(tbl.rows):
+        tag = "th" if r_i == 0 else "td"
+        cells = "".join(
+            f"<{tag}>{esc(cell.text).replace(chr(10), '<br>')}</{tag}>"
+            for cell in row.cells)
+        rows.append(f"<tr>{cells}</tr>")
+    return "<table>\n" + "\n".join(rows) + "\n</table>"
+
+
+SERIES_COLORS = ["#1d4e89", "#c0392b", "#27864a", "#8e44ad"]
+
+
+def cat_label(cat):
+    s = str(cat).strip()
+    return s[:-2] if s.endswith(".0") else s
+
+
+def chart_html(chart):
+    """Draw a line chart as inline SVG (the decks only use line charts)."""
+    try:
+        plot = chart.plots[0]
+        cats = [cat_label(c) for c in plot.categories]
+        series = [(s.name, list(s.values)) for s in plot.series]
+    except Exception as e:  # noqa: BLE001
+        warn(f"chart could not be read: {e}")
+        return ""
+    vals = [v for _, vs in series for v in vs if v is not None]
+    if not vals or not cats:
+        return ""
+    lo, hi = min(vals + [0]), max(vals)
+    if hi == lo:
+        hi = lo + 1
+    W, H, L, R, T, B = 640, 300, 56, 16, 16, 36
+    n = len(cats)
+
+    def x(i):
+        return L + (W - L - R) * (i / max(n - 1, 1))
+
+    def y(v):
+        return T + (H - T - B) * (1 - (v - lo) / (hi - lo))
+
+    parts = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" '
+             f'xmlns="http://www.w3.org/2000/svg">']
+    for v in (lo, (lo + hi) / 2, hi):
+        parts.append(f'<line x1="{L}" x2="{W - R}" y1="{y(v):.1f}" y2="{y(v):.1f}" class="grid"/>'
+                     f'<text x="{L - 6}" y="{y(v) + 4:.1f}" text-anchor="end">{v:,.4g}</text>')
+    if lo < 0 < hi:
+        parts.append(f'<line x1="{L}" x2="{W - R}" y1="{y(0):.1f}" y2="{y(0):.1f}" class="zero"/>')
+    # Label the first and last category plus where the category changes, sparsely.
+    ticks, last = [], None
+    for i, c in enumerate(cats):
+        if c and c != last:
+            ticks.append(i)
+            last = c
+    step = max(1, len(ticks) // 8)
+    for i in ticks[::step]:
+        parts.append(f'<text x="{x(i):.1f}" y="{H - B + 18}" text-anchor="middle">{esc(cats[i])}</text>')
+    for k, (name, vs) in enumerate(series):
+        color = SERIES_COLORS[k % len(SERIES_COLORS)]
+        pts, segs = [], []
+        for i, v in enumerate(vs):
+            if v is None:
+                if pts:
+                    segs.append(pts)
+                pts = []
+            else:
+                pts.append(f"{x(i):.1f},{y(v):.1f}")
+        if pts:
+            segs.append(pts)
+        for seg in segs:
+            parts.append(f'<polyline fill="none" stroke="{color}" stroke-width="2" '
+                         f'points="{" ".join(seg)}"/>')
+    parts.append("</svg>")
+    legend = ""
+    good_names = [(k, nm) for k, (nm, _) in enumerate(series)
+                  if nm and nm not in ("Year",) and not nm.startswith("#")]
+    if len(series) > 1 and good_names:
+        legend = '<p class="legend">' + " ".join(
+            f'<span style="color:{SERIES_COLORS[k % len(SERIES_COLORS)]}">&#9644; {esc(nm)}</span>'
+            for k, nm in good_names) + "</p>"
+    return "\n".join(parts) + legend
+
+
+class Deck:
+    def __init__(self, src, slug, outdir):
+        self.src, self.slug = src, slug
+        self.imgdir = outdir / slug
+        self.n_images = 0
+
+    def image_html(self, shape):
+        img = shape.image
+        ext = img.ext.lower()
+        self.n_images += 1
+        name = f"img{self.n_images:03d}"
+        self.imgdir.mkdir(parents=True, exist_ok=True)
+        if ext in CONVERT_WITH_SIPS:
+            raw = self.imgdir / f"{name}.{ext}"
+            raw.write_bytes(img.blob)
+            dest = self.imgdir / f"{name}.png"
+            subprocess.run(["sips", "-s", "format", "png", str(raw), "--out", str(dest)],
+                           check=True, capture_output=True)
+            raw.unlink()
+        elif ext in WEB_IMAGE_EXTS:
+            dest = self.imgdir / f"{name}.{ext}"
+            dest.write_bytes(img.blob)
+        else:
+            warn(f"{self.src.name}: skipped .{ext} image (not viewable in browsers)")
+            return ""
+        alt = esc(getattr(shape, "name", "") or "")
+        return f'<img src="{self.slug}/{dest.name}" alt="{alt}" loading="lazy">'
+
+    def shape_html(self, shape, title_id):
+        if shape.shape_id == title_id:
+            return ""
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            return "\n".join(filter(None, (self.shape_html(s, title_id) for s in shape.shapes)))
+        parts = []
+        if hasattr(shape, "image"):
+            try:
+                parts.append(self.image_html(shape))
+            except ValueError:
+                pass  # placeholder with no picture in it
+        if getattr(shape, "has_table", False) and shape.has_table:
+            parts.append(table_html(shape.table))
+        if getattr(shape, "has_chart", False) and shape.has_chart:
+            parts.append(chart_html(shape.chart))
+        if shape.has_text_frame:
+            parts.append(text_frame_html(shape.text_frame))
+        return "\n".join(filter(None, parts))
+
+    def build(self):
+        prs = Presentation(self.src)
+        if self.imgdir.exists():
+            shutil.rmtree(self.imgdir)
+        deck_title, sections = None, []
+        for num, slide in enumerate(prs.slides, 1):
+            title_shape = slide.shapes.title
+            if title_shape is not None and not title_shape.has_text_frame:
+                title_shape = None
+            title = title_shape.text_frame.text.strip() if title_shape is not None else ""
+            title_id = title_shape.shape_id if title_shape is not None and title else None
+            body = "\n".join(filter(None, (self.shape_html(s, title_id) for s in slide.shapes)))
+            if not title:
+                title = f"Slide {num}"
+            title = re.sub(r"\s+", " ", title)
+            if deck_title is None:
+                deck_title = title
+            notes = ""
+            if slide.has_notes_slide:
+                n = slide.notes_slide.notes_text_frame
+                if n is not None and n.text.strip():
+                    notes = f'<aside class="notes">{text_frame_html(n)}</aside>'
+            sections.append(
+                f'<section class="slide" id="s{num}">\n'
+                f'<h2><span class="num">{num}</span> {esc(title)}</h2>\n{body}\n{notes}\n</section>')
+        return deck_title, len(prs.slides), "\n".join(sections)
+
+
+def build_lectures(src, out):
+    outdir = out / "lectures"
+    outdir.mkdir(parents=True, exist_ok=True)
+    entries = []
+    for rel, slug in DECKS:
+        path = src / rel
+        if not path.exists():
+            warn(f"missing deck: {path}")
+            continue
+        deck = Deck(path, slug, outdir)
+        title, n, body = deck.build()
+        (outdir / f"{slug}.html").write_text(
+            page(title, f"<h1>{esc(title)}</h1>\n{body}", css="../style.css",
+                 home="../index.html"),
+            encoding="utf-8")
+        entries.append((f"lectures/{slug}.html", title, n))
+        print(f"  {rel}: {n} slides, {deck.n_images} images")
+    return entries
+
+
+# ---------------------------------------------------------------- quizzes
+
+def slugify(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def build_quizzes(src, out):
+    outdir = out / "quizzes"
+    if outdir.exists():
+        shutil.rmtree(outdir)
+    outdir.mkdir(parents=True)
+    entries = []
+    files = sorted(p for p in src.glob("*.docx")
+                   if p.name.startswith(QUIZ_PREFIXES) and p.name not in QUIZ_EXCLUDE)
+    for path in files:
+        slug = slugify(path.stem)
+        media = outdir / slug
+        res = subprocess.run(
+            ["pandoc", str(path), "-t", "html5", f"--extract-media={media}"],
+            capture_output=True, text=True, check=True, cwd=outdir)
+        body = res.stdout.replace(f'src="{media}/', f'src="{slug}/')
+        title = path.stem
+        (outdir / f"{slug}.html").write_text(
+            page(title, f"<h1>{esc(title)}</h1>\n{body}", css="../style.css",
+                 home="../index.html"),
+            encoding="utf-8")
+        entries.append((f"quizzes/{slug}.html", title))
+    print(f"  {len(entries)} quizzes/finals")
+    return entries
+
+
+# ---------------------------------------------------------------- models
+
+def build_models(models, out):
+    outdir = out / "models"
+    outdir.mkdir(parents=True, exist_ok=True)
+    entries = []
+    for fname, title, desc in MODELS:
+        path = models / fname
+        if not path.exists():
+            warn(f"missing model: {path}")
+            continue
+        shutil.copy2(path, outdir / fname)
+        entries.append((f"models/{fname}", title, desc))
+    print(f"  {len(entries)} models")
+    return entries
+
+
+# ---------------------------------------------------------------- index
+
+def quiz_sort_key(entry):
+    _, title = entry
+    is_final = title.lower().startswith("final")
+    return (is_final, title.lower())
+
+
+def build_index(out, lectures, quizzes, models):
+    lec = "\n".join(f'<li><a href="{h}">{esc(t)}</a> <span class="meta">({n} slides)</span></li>'
+                    for h, t, n in lectures)
+    qz = "\n".join(f'<li><a href="{h}">{esc(t)}</a></li>'
+                   for h, t in sorted(quizzes, key=quiz_sort_key))
+    md = "\n".join(f'<li><a href="{h}" download>{esc(t)}</a> &mdash; {esc(d)}</li>'
+                   for h, t, d in models)
+    body = f"""<h1>Macroeconomics</h1>
+<h2>Lectures</h2>
+<ul class="toc">
+{lec}
+</ul>
+<h2>Models</h2>
+<p>Macroeconomic models as Excel spreadsheets (click to download).</p>
+<ul class="toc">
+{md}
+</ul>
+<h2>Quizzes and exams</h2>
+<ul class="toc cols">
+{qz}
+</ul>"""
+    html_text = page("Macroeconomics", body).replace(
+        '<nav><a href="index.html">&larr; Macroeconomics</a></nav>\n', "")
+    (out / "index.html").write_text(html_text, encoding="utf-8")
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--src", type=Path, default=DEFAULT_SRC)
+    ap.add_argument("--models", type=Path, default=DEFAULT_MODELS)
+    ap.add_argument("--out", type=Path, default=Path(__file__).resolve().parent.parent)
+    args = ap.parse_args()
+    for p in (args.src, args.models):
+        if not p.is_dir():
+            sys.exit(f"source directory not found: {p}")
+    print("Lectures:")
+    lectures = build_lectures(args.src, args.out)
+    print("Quizzes:")
+    quizzes = build_quizzes(args.src, args.out)
+    print("Models:")
+    models = build_models(args.models, args.out)
+    build_index(args.out, lectures, quizzes, models)
+    for w in warnings:
+        print("warning:", w, file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
