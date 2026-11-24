@@ -2,6 +2,8 @@
 
 Contents of my macroeconomics course.
 
+Course site: https://gcallah.github.io/macroeconomics/
+
 ## Building the site
 
 The site is generated from course material kept outside this repo:
