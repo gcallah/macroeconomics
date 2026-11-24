@@ -12,6 +12,7 @@ Needs: python-pptx (pip install python-pptx) and pandoc.
 """
 
 import argparse
+import hashlib
 import html
 import re
 import shutil
@@ -30,18 +31,21 @@ DEFAULT_MODELS = HOME / "GitProjects/MacroModels"
 # Left out on purpose: Chapter07/MAC_1e_Chap_7_M.pptx and MacroInContext/,
 # which are the textbook publisher's slides.
 DECKS = [
-    ("Chapter01/Chapter1.pptx", "chapter01"),
-    ("Chapter02/Chapter2.pptx", "chapter02"),
-    ("Chapter03/Chapter3.pptx", "chapter03"),
-    ("Chapter04/Chapter4.pptx", "chapter04"),
-    ("Chapter05/Chapter5.pptx", "chapter05"),
-    ("Chapter07/Chapter7.pptx", "chapter07"),
-    ("Chapter07/Money.pptx", "chapter07-money"),
-    ("Chapter09/Chapter09.pptx", "chapter09"),
-    ("Chapter10/Chapter10.pptx", "chapter10"),
-    ("Chapter11/Chapter11.pptx", "chapter11"),
-    ("SchoolsOfThought/SchoolsOfThought.pptx", "schools-of-thought"),
+    ("Chapter01/Chapter1.pptx", "chapter01", "Chapter 1"),
+    ("Chapter02/Chapter2.pptx", "chapter02", "Chapter 2"),
+    ("Chapter03/Chapter3.pptx", "chapter03", "Chapter 3"),
+    ("Chapter04/Chapter4.pptx", "chapter04", "Chapter 4"),
+    ("Chapter05/Chapter5.pptx", "chapter05", "Chapter 5"),
+    ("Chapter07/Chapter7.pptx", "chapter07", "Chapter 7"),
+    ("Chapter07/Money.pptx", "chapter07-money", "Chapter 7"),
+    ("Chapter09/Chapter09.pptx", "chapter09", "Chapter 9"),
+    ("Chapter10/Chapter10.pptx", "chapter10", "Chapter 10"),
+    ("Chapter11/Chapter11.pptx", "chapter11", "Chapter 11"),
+    ("SchoolsOfThought/SchoolsOfThought.pptx", "schools-of-thought", "Supplement"),
 ]
+
+# Slide titles that are only a chapter label; the deck's real name follows.
+CHAPTER_TITLE_PREFIX = re.compile(r"^Chapter\s+\w+\s*:\s*", re.I)
 
 # Quizzes and finals: .docx files in SRC whose names start with these.
 # Excludes QuizTemplate, syllabi and other non-assessment documents.
@@ -78,20 +82,61 @@ def esc(text):
     return html.escape(text, quote=True)
 
 
-def page(title, body, css="style.css", home="index.html"):
+SITE_TITLE = "Macroeconomics"
+FONTS_URL = ("https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800"
+             "&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;"
+             "1,8..60,400&display=swap")
+CREDIT = ('Background: Adolph Menzel, <i>The Iron Rolling Mill (Modern Cyclopes)</i>, '
+          '1872&ndash;75, Alte Nationalgalerie, Berlin. '
+          '<a href="https://commons.wikimedia.org/wiki/File:Adolph_Menzel_-_Eisenwalzwerk_'
+          '-_Google_Art_Project.jpg">Public domain, via Wikimedia Commons</a>.')
+
+# Set in main() once style.css is known, so browsers refetch it after changes.
+CSS_VERSION = ""
+
+
+def page(title, body, root="", body_class="", hero=None):
+    """Wrap body in the site chrome.
+
+    root:  relative path from this page to the site root ("" or "../").
+    hero:  optional (kicker, heading, subtitle) shown over the painting.
+    """
+    hero_html = ""
+    if hero:
+        kicker, heading, sub = hero
+        hero_html = f"""<header class="hero">
+  <div class="hero-inner">
+    {f'<p class="kicker">{kicker}</p>' if kicker else ''}
+    <h1>{heading}</h1>
+    {f'<p class="sub">{sub}</p>' if sub else ''}
+  </div>
+</header>"""
+    doc_title = SITE_TITLE if title == SITE_TITLE else f"{title} · {SITE_TITLE}"
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{esc(title)}</title>
-    <link rel="stylesheet" href="{css}">
+    <title>{esc(doc_title)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{FONTS_URL}">
+    <link rel="stylesheet" href="{root}style.css?v={CSS_VERSION}">
 </head>
-<body>
-<nav><a href="{home}">&larr; Macroeconomics</a></nav>
+<body class="{body_class}">
+<nav class="site-nav">
+  <a class="brand" href="{root}index.html">{SITE_TITLE}</a>
+  <span class="links">
+    <a href="{root}index.html#lectures">Lectures</a>
+    <a href="{root}index.html#models">Models</a>
+    <a href="{root}index.html#quizzes">Quizzes</a>
+  </span>
+</nav>
+{hero_html}
 <main>
 {body}
 </main>
+<footer class="site-footer">{CREDIT}</footer>
 </body>
 </html>
 """
@@ -270,11 +315,13 @@ class Deck:
             parts.append(text_frame_html(shape.text_frame))
         return "\n".join(filter(None, parts))
 
+
     def build(self):
+        """Return (deck title, [(slide num, slide title)], slides html)."""
         prs = Presentation(self.src)
         if self.imgdir.exists():
             shutil.rmtree(self.imgdir)
-        deck_title, sections = None, []
+        deck_title, toc, sections = None, [], []
         for num, slide in enumerate(prs.slides, 1):
             title_shape = slide.shapes.title
             if title_shape is not None and not title_shape.has_text_frame:
@@ -286,7 +333,8 @@ class Deck:
                 title = f"Slide {num}"
             title = re.sub(r"\s+", " ", title)
             if deck_title is None:
-                deck_title = title
+                deck_title = CHAPTER_TITLE_PREFIX.sub("", title)
+            toc.append((num, title))
             notes = ""
             if slide.has_notes_slide:
                 n = slide.notes_slide.notes_text_frame
@@ -294,27 +342,55 @@ class Deck:
                     notes = f'<aside class="notes">{text_frame_html(n)}</aside>'
             sections.append(
                 f'<section class="slide" id="s{num}">\n'
-                f'<h2><span class="num">{num}</span> {esc(title)}</h2>\n{body}\n{notes}\n</section>')
-        return deck_title, len(prs.slides), "\n".join(sections)
+                f'<h2><a class="num" href="#s{num}">{num}</a> {esc(title)}</h2>\n'
+                f'{body}\n{notes}\n</section>')
+        return deck_title, toc, "\n".join(sections)
+
+
+def pager(prev, nxt):
+    """Previous/next lecture links. prev and nxt are (slug, title) or None."""
+    def link(entry, cls, arrow):
+        if not entry:
+            return '<span></span>'
+        slug, title = entry
+        return (f'<a class="{cls}" href="{slug}.html"><span class="dir">{arrow}</span>'
+                f'<span class="t">{esc(title)}</span></a>')
+    return (f'<nav class="pager">{link(prev, "prev", "&larr; Previous")}'
+            f'{link(nxt, "next", "Next &rarr;")}</nav>')
 
 
 def build_lectures(src, out):
     outdir = out / "lectures"
     outdir.mkdir(parents=True, exist_ok=True)
-    entries = []
-    for rel, slug in DECKS:
+    built = []
+    for rel, slug, label in DECKS:
         path = src / rel
         if not path.exists():
             warn(f"missing deck: {path}")
             continue
         deck = Deck(path, slug, outdir)
-        title, n, body = deck.build()
+        title, toc, body = deck.build()
+        built.append((slug, label, title, toc, body))
+        print(f"  {rel}: {len(toc)} slides, {deck.n_images} images")
+    entries = []
+    for i, (slug, label, title, toc, body) in enumerate(built):
+        prev = built[i - 1][:3:2] if i > 0 else None
+        nxt = built[i + 1][:3:2] if i + 1 < len(built) else None
+        contents = "\n".join(f'<li><a href="#s{n}">{esc(t)}</a></li>' for n, t in toc)
+        content = f"""{pager(prev, nxt)}
+<details class="contents">
+<summary>Contents &middot; {len(toc)} slides</summary>
+<ol>
+{contents}
+</ol>
+</details>
+{body}
+{pager(prev, nxt)}"""
         (outdir / f"{slug}.html").write_text(
-            page(title, f"<h1>{esc(title)}</h1>\n{body}", css="../style.css",
-                 home="../index.html"),
+            page(title, content, root="../", body_class="lecture",
+                 hero=(esc(label), esc(title), f"{len(toc)} slides")),
             encoding="utf-8")
-        entries.append((f"lectures/{slug}.html", title, n))
-        print(f"  {rel}: {n} slides, {deck.n_images} images")
+        entries.append((f"lectures/{slug}.html", label, title, len(toc)))
     return entries
 
 
@@ -324,12 +400,34 @@ def slugify(name):
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
+QUIZ_NAME = re.compile(
+    r"^(?:Macroeconomics\s*)?(?P<kind>Quiz|Final)\s*(?P<num>\d*)(?P<ver>[a-z]?)"
+    r"(?P<makeup>Makeup)?(?:[-_](?P<year>\d{2,4})(?P<sem>S)?)?$")
+
+
+def describe_quiz(stem):
+    """Map a file name to (group, label), e.g. Quiz1-16S -> ("Quiz 1", "Spring 2016")."""
+    m = QUIZ_NAME.match(stem)
+    if not m:
+        return ("Other", re.sub(r"(?<=[a-z])(?=[A-Z])", " ", stem))
+    group = "Final exam" if m["kind"] == "Final" else f"Quiz {m['num']}"
+    bits = []
+    if m["year"]:
+        year = m["year"] if len(m["year"]) == 4 else "20" + m["year"]
+        bits.append(("Spring " if m["sem"] else "") + year)
+    if m["ver"]:
+        bits.append(f"Version {m['ver'].upper()}")
+    if m["makeup"]:
+        bits.append("Make-up")
+    return (group, ", ".join(bits) or "Undated")
+
+
 def build_quizzes(src, out):
     outdir = out / "quizzes"
     if outdir.exists():
         shutil.rmtree(outdir)
     outdir.mkdir(parents=True)
-    entries = []
+    entries, seen = [], {}
     files = sorted(p for p in src.glob("*.docx")
                    if p.name.startswith(QUIZ_PREFIXES) and p.name not in QUIZ_EXCLUDE)
     for path in files:
@@ -339,12 +437,17 @@ def build_quizzes(src, out):
             ["pandoc", str(path), "-t", "html5", f"--extract-media={media}"],
             capture_output=True, text=True, check=True, cwd=outdir)
         body = res.stdout.replace(f'src="{media}/', f'src="{slug}/')
-        title = path.stem
+        group, label = describe_quiz(path.stem)
+        seen[(group, label)] = seen.get((group, label), 0) + 1
+        if seen[(group, label)] > 1:
+            label = f"{label} ({seen[(group, label)]})"
+        title = f"{group} ({label})" if group != "Other" else label
         (outdir / f"{slug}.html").write_text(
-            page(title, f"<h1>{esc(title)}</h1>\n{body}", css="../style.css",
-                 home="../index.html"),
+            page(title, f'<article class="paper">\n{body}\n</article>', root="../",
+                 body_class="quiz", hero=("Quizzes and exams", esc(group if group != "Other" else label),
+                                          esc(label) if group != "Other" else "")),
             encoding="utf-8")
-        entries.append((f"quizzes/{slug}.html", title))
+        entries.append((f"quizzes/{slug}.html", group, label))
     print(f"  {len(entries)} quizzes/finals")
     return entries
 
@@ -368,39 +471,59 @@ def build_models(models, out):
 
 # ---------------------------------------------------------------- index
 
-def quiz_sort_key(entry):
-    _, title = entry
-    is_final = title.lower().startswith("final")
-    return (is_final, title.lower())
+def group_order(group):
+    if group.startswith("Quiz "):
+        return (0, int(group.split()[1] or 0))
+    return (1, 0) if group == "Final exam" else (2, 0)
 
 
 def build_index(out, lectures, quizzes, models):
-    lec = "\n".join(f'<li><a href="{h}">{esc(t)}</a> <span class="meta">({n} slides)</span></li>'
-                    for h, t, n in lectures)
-    qz = "\n".join(f'<li><a href="{h}">{esc(t)}</a></li>'
-                   for h, t in sorted(quizzes, key=quiz_sort_key))
-    md = "\n".join(f'<li><a href="{h}" download>{esc(t)}</a> &mdash; {esc(d)}</li>'
-                   for h, t, d in models)
-    body = f"""<h1>Macroeconomics</h1>
+    lec = "\n".join(
+        f'<li><a class="card" href="{h}"><span class="label">{esc(lb)}</span>'
+        f'<span class="title">{esc(t)}</span><span class="meta">{n} slides</span></a></li>'
+        for h, lb, t, n in lectures)
+    md = "\n".join(
+        f'<li><a class="card" href="{h}" download><span class="label">Excel model</span>'
+        f'<span class="title">{esc(t)}</span><span class="desc">{esc(d)}</span>'
+        f'<span class="meta">Download .xlsx</span></a></li>'
+        for h, t, d in models)
+    groups = {}
+    for h, g, lb in quizzes:
+        groups.setdefault(g, []).append((lb, h))
+    qz = "\n".join(
+        f'<li class="quiz-group"><span class="title">{esc(g)}</span><span class="chips">'
+        + "".join(f'<a href="{h}">{esc(lb)}</a>' for lb, h in sorted(groups[g]))
+        + "</span></li>"
+        for g in sorted(groups, key=group_order))
+    body = f"""<section id="lectures">
 <h2>Lectures</h2>
-<ul class="toc">
+<ul class="cards">
 {lec}
 </ul>
+</section>
+<section id="models">
 <h2>Models</h2>
-<p>Macroeconomic models as Excel spreadsheets (click to download).</p>
-<ul class="toc">
+<p class="lede">Spreadsheets for experimenting with core macroeconomic models.</p>
+<ul class="cards">
 {md}
 </ul>
+</section>
+<section id="quizzes">
 <h2>Quizzes and exams</h2>
-<ul class="toc cols">
+<p class="lede">Past quizzes and finals, grouped by quiz.</p>
+<ul class="quiz-list">
 {qz}
-</ul>"""
-    html_text = page("Macroeconomics", body).replace(
-        '<nav><a href="index.html">&larr; Macroeconomics</a></nav>\n', "")
-    (out / "index.html").write_text(html_text, encoding="utf-8")
+</ul>
+</section>"""
+    (out / "index.html").write_text(
+        page(SITE_TITLE, body, body_class="home",
+             hero=("A course in", SITE_TITLE,
+                   "Lectures, models and exams on output, employment, money and fluctuations.")),
+        encoding="utf-8")
 
 
 def main():
+    global CSS_VERSION
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--src", type=Path, default=DEFAULT_SRC)
     ap.add_argument("--models", type=Path, default=DEFAULT_MODELS)
@@ -409,6 +532,7 @@ def main():
     for p in (args.src, args.models):
         if not p.is_dir():
             sys.exit(f"source directory not found: {p}")
+    CSS_VERSION = hashlib.sha1((args.out / "style.css").read_bytes()).hexdigest()[:8]
     print("Lectures:")
     lectures = build_lectures(args.src, args.out)
     print("Quizzes:")

@@ -4,59 +4,70 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Macroeconomics</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+    <link rel="stylesheet" href="style.css?v=0e1a44cf">
 </head>
-<body>
+<body class="home">
+<nav class="site-nav">
+  <a class="brand" href="index.html">Macroeconomics</a>
+  <span class="links">
+    <a href="index.html#lectures">Lectures</a>
+    <a href="index.html#models">Models</a>
+    <a href="index.html#quizzes">Quizzes</a>
+  </span>
+</nav>
+<header class="hero">
+  <div class="hero-inner">
+    <p class="kicker">A course in</p>
+    <h1>Macroeconomics</h1>
+    <p class="sub">Lectures, models and exams on output, employment, money and fluctuations.</p>
+  </div>
+</header>
 <main>
-<h1>Macroeconomics</h1>
+<section id="lectures">
 <h2>Lectures</h2>
-<ul class="toc">
-<li><a href="lectures/chapter01.html">Economic Activity in Context</a> <span class="meta">(39 slides)</span></li>
-<li><a href="lectures/chapter02.html">Useful Tools and Concepts</a> <span class="meta">(45 slides)</span></li>
-<li><a href="lectures/chapter03.html">What Economies Do</a> <span class="meta">(19 slides)</span></li>
-<li><a href="lectures/chapter04.html">Supply and Demand</a> <span class="meta">(22 slides)</span></li>
-<li><a href="lectures/chapter05.html">Macroeconomic Measurement</a> <span class="meta">(28 slides)</span></li>
-<li><a href="lectures/chapter07.html">Employment and Unemployment</a> <span class="meta">(20 slides)</span></li>
-<li><a href="lectures/chapter07-money.html">The Nature of Money</a> <span class="meta">(9 slides)</span></li>
-<li><a href="lectures/chapter09.html">Aggregate Demand and Economic Fluctuations</a> <span class="meta">(27 slides)</span></li>
-<li><a href="lectures/chapter10.html">Chapter Ten: Fiscal Policy</a> <span class="meta">(9 slides)</span></li>
-<li><a href="lectures/chapter11.html">Money</a> <span class="meta">(27 slides)</span></li>
-<li><a href="lectures/schools-of-thought.html">Say’s Law and the Role of Government</a> <span class="meta">(7 slides)</span></li>
+<ul class="cards">
+<li><a class="card" href="lectures/chapter01.html"><span class="label">Chapter 1</span><span class="title">Economic Activity in Context</span><span class="meta">39 slides</span></a></li>
+<li><a class="card" href="lectures/chapter02.html"><span class="label">Chapter 2</span><span class="title">Useful Tools and Concepts</span><span class="meta">45 slides</span></a></li>
+<li><a class="card" href="lectures/chapter03.html"><span class="label">Chapter 3</span><span class="title">What Economies Do</span><span class="meta">19 slides</span></a></li>
+<li><a class="card" href="lectures/chapter04.html"><span class="label">Chapter 4</span><span class="title">Supply and Demand</span><span class="meta">22 slides</span></a></li>
+<li><a class="card" href="lectures/chapter05.html"><span class="label">Chapter 5</span><span class="title">Macroeconomic Measurement</span><span class="meta">28 slides</span></a></li>
+<li><a class="card" href="lectures/chapter07.html"><span class="label">Chapter 7</span><span class="title">Employment and Unemployment</span><span class="meta">20 slides</span></a></li>
+<li><a class="card" href="lectures/chapter07-money.html"><span class="label">Chapter 7</span><span class="title">The Nature of Money</span><span class="meta">9 slides</span></a></li>
+<li><a class="card" href="lectures/chapter09.html"><span class="label">Chapter 9</span><span class="title">Aggregate Demand and Economic Fluctuations</span><span class="meta">27 slides</span></a></li>
+<li><a class="card" href="lectures/chapter10.html"><span class="label">Chapter 10</span><span class="title">Fiscal Policy</span><span class="meta">9 slides</span></a></li>
+<li><a class="card" href="lectures/chapter11.html"><span class="label">Chapter 11</span><span class="title">Money</span><span class="meta">27 slides</span></a></li>
+<li><a class="card" href="lectures/schools-of-thought.html"><span class="label">Supplement</span><span class="title">Say’s Law and the Role of Government</span><span class="meta">7 slides</span></a></li>
 </ul>
+</section>
+<section id="models">
 <h2>Models</h2>
-<p>Macroeconomic models as Excel spreadsheets (click to download).</p>
-<ul class="toc">
-<li><a href="models/RealVsNominal.xlsx" download>Real versus nominal growth</a> &mdash; Generates problems for telling apart real growth, nominal growth and inflation in a two-good economy.</li>
-<li><a href="models/KeynesianCross.xlsx" download>Keynesian cross</a> &mdash; Experiment with the Keynesian cross by setting autonomous consumption, intended investment and the marginal propensity to consume.</li>
-<li><a href="models/PPF.xlsx" download>Production possibilities frontier</a> &mdash; Shows how the production possibilities frontier can change and how points along it are chosen.</li>
-<li><a href="models/LoanableFunds.xlsx" download>Loanable funds</a> &mdash; The classical loanable funds market.</li>
-<li><a href="models/SupplyDemand.xlsx" download>Supply and demand</a> &mdash; A basic supply and demand model.</li>
+<p class="lede">Spreadsheets for experimenting with core macroeconomic models.</p>
+<ul class="cards">
+<li><a class="card" href="models/RealVsNominal.xlsx" download><span class="label">Excel model</span><span class="title">Real versus nominal growth</span><span class="desc">Generates problems for telling apart real growth, nominal growth and inflation in a two-good economy.</span><span class="meta">Download .xlsx</span></a></li>
+<li><a class="card" href="models/KeynesianCross.xlsx" download><span class="label">Excel model</span><span class="title">Keynesian cross</span><span class="desc">Experiment with the Keynesian cross by setting autonomous consumption, intended investment and the marginal propensity to consume.</span><span class="meta">Download .xlsx</span></a></li>
+<li><a class="card" href="models/PPF.xlsx" download><span class="label">Excel model</span><span class="title">Production possibilities frontier</span><span class="desc">Shows how the production possibilities frontier can change and how points along it are chosen.</span><span class="meta">Download .xlsx</span></a></li>
+<li><a class="card" href="models/LoanableFunds.xlsx" download><span class="label">Excel model</span><span class="title">Loanable funds</span><span class="desc">The classical loanable funds market.</span><span class="meta">Download .xlsx</span></a></li>
+<li><a class="card" href="models/SupplyDemand.xlsx" download><span class="label">Excel model</span><span class="title">Supply and demand</span><span class="desc">A basic supply and demand model.</span><span class="meta">Download .xlsx</span></a></li>
 </ul>
+</section>
+<section id="quizzes">
 <h2>Quizzes and exams</h2>
-<ul class="toc cols">
-<li><a href="quizzes/cheatersquiz.html">CheatersQuiz</a></li>
-<li><a href="quizzes/macroeconomics-quiz-1.html">Macroeconomics Quiz 1</a></li>
-<li><a href="quizzes/macroeconomicsquiz2.html">MacroeconomicsQuiz2</a></li>
-<li><a href="quizzes/quiz1.html">Quiz1</a></li>
-<li><a href="quizzes/quiz1-13.html">Quiz1-13</a></li>
-<li><a href="quizzes/quiz1-16s.html">Quiz1-16S</a></li>
-<li><a href="quizzes/quiz1makeup.html">Quiz1Makeup</a></li>
-<li><a href="quizzes/quiz2.html">Quiz2</a></li>
-<li><a href="quizzes/quiz2-2012.html">Quiz2-2012</a></li>
-<li><a href="quizzes/quiz2-2013.html">Quiz2-2013</a></li>
-<li><a href="quizzes/quiz3.html">Quiz3</a></li>
-<li><a href="quizzes/quiz3-2012.html">Quiz3-2012</a></li>
-<li><a href="quizzes/quiz3-2013.html">Quiz3_2013</a></li>
-<li><a href="quizzes/quiz4.html">Quiz4</a></li>
-<li><a href="quizzes/quiz4a.html">Quiz4a</a></li>
-<li><a href="quizzes/quiz5.html">Quiz5</a></li>
-<li><a href="quizzes/quiz6.html">Quiz6</a></li>
-<li><a href="quizzes/quiz6a.html">Quiz6a</a></li>
-<li><a href="quizzes/quiz6b.html">Quiz6b</a></li>
-<li><a href="quizzes/final.html">Final</a></li>
-<li><a href="quizzes/final-2012.html">Final-2012</a></li>
-<li><a href="quizzes/final-2013.html">Final_2013</a></li>
+<p class="lede">Past quizzes and finals, grouped by quiz.</p>
+<ul class="quiz-list">
+<li class="quiz-group"><span class="title">Quiz 1</span><span class="chips"><a href="quizzes/quiz1-13.html">2013</a><a href="quizzes/quiz1makeup.html">Make-up</a><a href="quizzes/quiz1-16s.html">Spring 2016</a><a href="quizzes/macroeconomics-quiz-1.html">Undated</a><a href="quizzes/quiz1.html">Undated (2)</a></span></li>
+<li class="quiz-group"><span class="title">Quiz 2</span><span class="chips"><a href="quizzes/quiz2-2012.html">2012</a><a href="quizzes/quiz2-2013.html">2013</a><a href="quizzes/macroeconomicsquiz2.html">Undated</a><a href="quizzes/quiz2.html">Undated (2)</a></span></li>
+<li class="quiz-group"><span class="title">Quiz 3</span><span class="chips"><a href="quizzes/quiz3-2012.html">2012</a><a href="quizzes/quiz3-2013.html">2013</a><a href="quizzes/quiz3.html">Undated</a></span></li>
+<li class="quiz-group"><span class="title">Quiz 4</span><span class="chips"><a href="quizzes/quiz4.html">Undated</a><a href="quizzes/quiz4a.html">Version A</a></span></li>
+<li class="quiz-group"><span class="title">Quiz 5</span><span class="chips"><a href="quizzes/quiz5.html">Undated</a></span></li>
+<li class="quiz-group"><span class="title">Quiz 6</span><span class="chips"><a href="quizzes/quiz6.html">Undated</a><a href="quizzes/quiz6a.html">Version A</a><a href="quizzes/quiz6b.html">Version B</a></span></li>
+<li class="quiz-group"><span class="title">Final exam</span><span class="chips"><a href="quizzes/final-2012.html">2012</a><a href="quizzes/final-2013.html">2013</a><a href="quizzes/final.html">Undated</a></span></li>
+<li class="quiz-group"><span class="title">Other</span><span class="chips"><a href="quizzes/cheatersquiz.html">Cheaters Quiz</a></span></li>
 </ul>
+</section>
 </main>
+<footer class="site-footer">Background: Adolph Menzel, <i>The Iron Rolling Mill (Modern Cyclopes)</i>, 1872&ndash;75, Alte Nationalgalerie, Berlin. <a href="https://commons.wikimedia.org/wiki/File:Adolph_Menzel_-_Eisenwalzwerk_-_Google_Art_Project.jpg">Public domain, via Wikimedia Commons</a>.</footer>
 </body>
 </html>
